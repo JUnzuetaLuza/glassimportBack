@@ -6,22 +6,22 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalTime;
+
 @Entity
 @Table(name = "horarios")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Horario {
+public class CrearHorario {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String fecha;  // Formato: "YYYY-MM-DD"
-    private String hora;   // Formato: "HH:mm"
-    private String estado; // LIBRE, EN_PROCESO, OCUPADO
+    // Solo la hora (ej: 09:00, 14:30)
+    @Column(nullable = false)
+    private LocalTime hora;
 
-    // Relación bidireccional con Reserva
-    @OneToOne(mappedBy = "horario")
-    private Reserva reserva;
 }

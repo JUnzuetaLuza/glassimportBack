@@ -1,14 +1,12 @@
 package isil.pe.glassimport.repository;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.util.List;
-
+import isil.pe.glassimport.entity.Reserva;
+import isil.pe.glassimport.entity.enums.EstadoReserva;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import isil.pe.glassimport.entity.Reserva;
-import isil.pe.glassimport.entity.enums.EstadoReserva;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
@@ -30,8 +28,4 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
     // Método que necesita tu Scheduler
     List<Reserva> findAllByFechaBetweenAndEstado(LocalDateTime inicio, LocalDateTime fin, EstadoReserva estado);
-
-    boolean existsByFechaAndUserId(Timestamp fecha, Long userId);
-
-    boolean existsByFechaAndAutomovilId(Timestamp fecha, Long automovilId);
 }
