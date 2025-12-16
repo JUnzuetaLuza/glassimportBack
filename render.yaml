@@ -1,7 +1,7 @@
 services:
   - type: web
     name: glassimport-api
-    env: jdk 
+    env: java22
     plan: free
     repo: https://github.com/JUnzuetaLuza/glassimportBack
     branch: main
