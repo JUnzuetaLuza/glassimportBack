@@ -1,9 +1,74 @@
 services:
   - type: web
     name: glassimport-api
-    env: java
+    env: java 
+    plan: free
+    repo: https://github.com/JUnzuetaLuza/glassimportBack
+    branch: main
+    
+    # Comandos de Build y Inicio
     buildCommand: mvn clean package
     startCommand: java -jar target/*.jar
-    plan: free
-    ports:
-      - 10000
+    
+    port: 10000 
+    
+    envVars:
+      # CONFIGURACIÓN DEL SERVIDOR Y FRONTEND
+      - key: SERVER_PORT
+        value: '10000'
+      - key: spring.application.name
+        value: glass-import
+      - key: FRONTEND_URL
+        value: "https://glassimport-front.vercel.app/" 
+        
+      # BASE DE DATOS (NEON.TECH)
+      - key: SPRING_DATASOURCE_URL
+        value: "jdbc:postgresql://ep-solitary-sun-a4mq75sc-pooler.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
+      - key: SPRING_DATASOURCE_USERNAME
+        value: "neondb_owner"
+      - key: SPRING_DATASOURCE_PASSWORD
+        value: "npg_ilTCPqJD98mY"
+      - key: SPRING_DATASOURCE_DRIVER-CLASS-NAME
+        value: "org.postgresql.Driver"
+      
+      # JPA/Hibernate
+      - key: SPRING_JPA_HIBERNATE_DDL-AUTO
+        value: "update"
+      - key: SPRING_JPA_SHOW-SQL
+        value: "true"
+      - key: SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT
+        value: "org.hibernate.dialect.PostgreSQLDialect"
+        
+      # SEGURIDAD (JWT y OAUTH2 GOOGLE)
+      - key: JWT_SECRET
+        value: "7x9K2mP5nQ8rT3vW6yZ1aC4dF7gJ0kM3pS6uX9zA2bE5hL8oR1tY4wB7eH0jN3qT"
+        
+      # Google OAuth2
+      - key: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT-ID
+        value: "14851884405-m6i95l03m9gp8t4kqss2khebn8v9l2d9.apps.googleusercontent.com"
+      - key: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT-SECRET
+        value: "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"
+      - key: spring.security.oauth2.client.registration.google.redirect-uri
+        value: "{baseUrl}/oauth2/code/{registrationId}"
+      - key: spring.security.oauth2.client.registration.google.scope
+        value: "profile,email"
+      - key: spring.security.oauth2.client.provider.google.issuer-uri
+        value: "https://accounts.google.com"
+
+      # EMAIL SMTP
+      - key: SPRING_MAIL_HOST
+        value: "smtp.gmail.com"
+      - key: SPRING_MAIL_PORT
+        value: "587"
+      - key: SPRING_MAIL_USERNAME
+        value: "preciadotec@gmail.com"
+      - key: SPRING_MAIL_PASSWORD
+        value: "ifbyxqjlofbbjsml"
+      
+      # Propiedades SMTP
+      - key: SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH
+        value: "true"
+      - key: SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE
+        value: "true"
+      - key: SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED
+        value: "true"
