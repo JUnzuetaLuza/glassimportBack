@@ -5,22 +5,33 @@ import isil.pe.glassimport.repository.HorarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 
 @Service
 public class HorarioService {
+
     @Autowired
     private HorarioRepository repo;
 
-    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
+    // Slots válidos
     private final List<String> HORAS = Arrays.asList("09:00", "10:30", "12:00", "15:00", "17:00");
 
-    // Devuelve estado de cada horario para una fecha
+    private final DateTimeFormatter HORA_IN = DateTimeFormatter.ofPattern("H:mm");   // acepta 9:00 ó 09:00
+    private final DateTimeFormatter HORA_OUT = DateTimeFormatter.ofPattern("HH:mm"); // normaliza a 09:00
+
+    private String normalizarHora(String horaCruda) {
+        LocalTime t = LocalTime.parse(horaCruda.trim(), HORA_IN);
+        return t.format(HORA_OUT);
+    }
+
     public Map<String, String> getEstadosHorarios(String fecha) {
         Map<String, String> result = new HashMap<>();
-        for(String hora : HORAS) {
+        for (String hora : HORAS) {
             String estado = repo.findByFechaAndHora(fecha, hora)
                     .map(Horario::getEstado)
                     .orElse("LIBRE");
@@ -29,34 +40,47 @@ public class HorarioService {
         return result;
     }
 
-    // Bloquea un horario durante 3 minutos (EN_PROCESO)
-    public boolean bloquearHorario(String fecha, String hora) {
+    public boolean bloquearHorario(String fecha, String horaCruda) {
+        String hora = normalizarHora(horaCruda);
+        System.out.println("LOCK REQUEST => fecha=" + fecha + ", hora=" + hora);
+
         Optional<Horario> hOpt = repo.findByFechaAndHora(fecha, hora);
-        if (hOpt.isPresent() && !"LIBRE".equals(hOpt.get().getEstado()))
+
+        if (hOpt.isPresent() && !"LIBRE".equals(hOpt.get().getEstado())) {
+            System.out.println("NO SE PUEDE BLOQUEAR, YA NO ESTÁ LIBRE");
             return false;
-        Horario h = hOpt.orElse(new Horario());
+        }
+
+        Horario h = hOpt.orElse(Horario.builder().build());
         h.setFecha(fecha);
         h.setHora(hora);
         h.setEstado("EN_PROCESO");
         repo.save(h);
+        System.out.println("GUARDADO EN_PROCESO => " + h.getFecha() + " " + h.getHora());
 
         scheduler.schedule(() -> {
-            Horario hh = repo.findByFechaAndHora(fecha, hora).orElse(null);
-            if (hh != null && "EN_PROCESO".equals(hh.getEstado())) {
-                hh.setEstado("LIBRE");
-                repo.save(hh);
-            }
+            repo.findByFechaAndHora(fecha, hora).ifPresent(hh -> {
+                if ("EN_PROCESO".equals(hh.getEstado())) {
+                    hh.setEstado("LIBRE");
+                    repo.save(hh);
+                    System.out.println("AUTO-LIBERADO => " + hh.getFecha() + " " + hh.getHora());
+                }
+            });
         }, 3, TimeUnit.MINUTES);
 
         return true;
     }
 
-    // Reserva definitiva
-    public void reservarHorario(String fecha, String hora) {
-        Horario h = repo.findByFechaAndHora(fecha, hora).orElse(new Horario());
+    public void reservarHorario(String fecha, String horaCruda) {
+        String hora = normalizarHora(horaCruda);
+        System.out.println("RESERVA REQUEST => fecha=" + fecha + ", hora=" + hora);
+
+        Horario h = repo.findByFechaAndHora(fecha, hora)
+                .orElse(Horario.builder().build());
         h.setFecha(fecha);
         h.setHora(hora);
         h.setEstado("OCUPADO");
         repo.save(h);
+        System.out.println("RESERVADO => " + h.getFecha() + " " + h.getHora());
     }
 }

@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: glassimport-api
+    env: java
+    buildCommand: mvn clean package
+    startCommand: java -jar target/*.jar
+    plan: free
+    ports:
+      - 10000

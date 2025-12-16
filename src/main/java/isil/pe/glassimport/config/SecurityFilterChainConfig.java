@@ -1,10 +1,9 @@
 package isil.pe.glassimport.config;
 
-import isil.pe.glassimport.dto.response.AuthResponse;
-import isil.pe.glassimport.dto.response.JwtPayload;
-import isil.pe.glassimport.entity.User;
-import isil.pe.glassimport.repository.UserRepository;
-import isil.pe.glassimport.services.JwtService;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -14,10 +13,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
+import isil.pe.glassimport.dto.response.AuthResponse;
+import isil.pe.glassimport.dto.response.JwtPayload;
+import isil.pe.glassimport.entity.User;
+import isil.pe.glassimport.repository.UserRepository;
+import isil.pe.glassimport.services.JwtService;
 
 @Configuration
 @EnableWebSecurity
@@ -27,7 +31,8 @@ public class SecurityFilterChainConfig {
     private final JwtService jwtService;
     private final UserRepository userRepository;
 
-    public SecurityFilterChainConfig(JwtAuthorization jwtAuthorizationFilter, JwtService jwtService, UserRepository userRepository) {
+    public SecurityFilterChainConfig(JwtAuthorization jwtAuthorizationFilter, JwtService jwtService,
+            UserRepository userRepository) {
         this.jwtAuthorizationFilter = jwtAuthorizationFilter;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
@@ -37,18 +42,19 @@ public class SecurityFilterChainConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authorizeRequests ->
-                        authorizeRequests
-                                .requestMatchers("/auth/**", "/oauth2/**", "/login/**" , "/api/automoviles/**","/api/horarios/**").permitAll()
-                                .anyRequest().permitAll()
-                )
+                .authorizeHttpRequests(authorizeRequests -> authorizeRequests
+                        .requestMatchers("/auth/**", "/oauth2/**", "/login/**", "/api/automoviles/**",
+                                "/api/horarios/**")
+                        .permitAll()
+                        .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth -> oauth
-                        .authorizationEndpoint(authorizationEndpointConfig ->
-                                authorizationEndpointConfig.baseUri("/oauth2/authorization"))
-                        .redirectionEndpoint(redirectionEndpointConfig ->
-                                redirectionEndpointConfig.baseUri("/login/oauth2/code/**"))
+                        .authorizationEndpoint(authorizationEndpointConfig -> authorizationEndpointConfig
+                                .baseUri("/oauth2/authorization"))
+                        .redirectionEndpoint(
+                                redirectionEndpointConfig -> redirectionEndpointConfig.baseUri("/oauth2/code/**"))
                         .successHandler((request, response, authentication) -> {
                             try {
                                 OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
@@ -73,15 +79,15 @@ public class SecurityFilterChainConfig {
                                             return userRepository.save(newUser);
                                         });
 
-                                System.out.println("✅ Usuario guardado/encontrado - ID: " + user.getId() + ", Nombre: " + user.getUsername());
+                                System.out.println("✅ Usuario guardado/encontrado - ID: " + user.getId() + ", Nombre: "
+                                        + user.getUsername());
 
                                 // Generar token JWT
                                 long expiration = 7 * 24 * 60 * 60;
                                 JwtPayload tokenPayload = new JwtPayload(
                                         user.getId().toString(),
                                         user.getEmail(),
-                                        List.of()
-                                );
+                                        List.of());
                                 String token = jwtService.generateToken(tokenPayload, expiration);
 
                                 // Crear AuthResponse
@@ -93,8 +99,7 @@ public class SecurityFilterChainConfig {
                                         token,
                                         user.getId(),
                                         URLEncoder.encode(user.getUsername(), StandardCharsets.UTF_8),
-                                        URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8)
-                                );
+                                        URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8));
 
                                 response.sendRedirect(redirectUrl);
 
@@ -107,8 +112,22 @@ public class SecurityFilterChainConfig {
                                     ex.printStackTrace();
                                 }
                             }
-                        })
-                )
+                        }))
                 .build();
     }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(false);
+
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
 }

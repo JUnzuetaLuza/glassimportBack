@@ -7,25 +7,26 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import isil.pe.glassimport.entity.enums.EstadoReserva;
+import javax.crypto.SecretKey;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import isil.pe.glassimport.dto.request.ReservaRequestDto;
+import isil.pe.glassimport.dto.response.AutomovilResponseDto;
 import isil.pe.glassimport.dto.response.ReservaResponseDto;
 import isil.pe.glassimport.dto.response.UserResponseDto;
-import isil.pe.glassimport.dto.response.AutomovilResponseDto;
+import isil.pe.glassimport.entity.Automovil;
 import isil.pe.glassimport.entity.Reserva;
 import isil.pe.glassimport.entity.User;
-import isil.pe.glassimport.entity.Automovil;
+import isil.pe.glassimport.entity.enums.EstadoReserva;
+import isil.pe.glassimport.exceptions.CitaExistsException;
 import isil.pe.glassimport.repository.ReservaRepository;
 import lombok.RequiredArgsConstructor;
-
-import javax.crypto.SecretKey;
 
 @Service
 @RequiredArgsConstructor
@@ -50,17 +51,27 @@ public class ReservaService {
 
     public ReservaResponseDto createReserva(ReservaRequestDto reservaRequestDto) {
         Optional<UserResponseDto> user = userService.getUserById(reservaRequestDto.getUserId());
-        Optional<AutomovilResponseDto> automovil = automovilService.getAutomovilById(reservaRequestDto.getAutomovilId());
+        Optional<AutomovilResponseDto> automovil = automovilService
+                .getAutomovilById(reservaRequestDto.getAutomovilId());
 
         if (user.isEmpty() || automovil.isEmpty()) {
             throw new RuntimeException("Error al crear reserva - Usuario o automóvil no encontrado");
         }
 
         String estado = reservaRequestDto.getEstado() != null ? reservaRequestDto.getEstado() : "PENDIENTE";
+        Timestamp fecha = reservaRequestDto.getFecha();
+
+        if (reservaRepository.existsByFechaAndUserId(fecha, reservaRequestDto.getUserId())) {
+            throw new CitaExistsException("Ya existe una reserva para este usuario en esa fecha.");
+        }
+
+        if (reservaRepository.existsByFechaAndAutomovilId(fecha, reservaRequestDto.getAutomovilId())) {
+            throw new CitaExistsException("Ya existe una reserva para este automóvil en esa fecha.");
+        }
 
         Reserva reserva = Reserva.builder()
                 .estado(estado)
-                .fecha(new Timestamp(System.currentTimeMillis()))
+                .fecha(fecha)
                 .servicio(reservaRequestDto.getServicio())
                 .user(dtoToEntity(user.get()))
                 .automovil(automovilDtoToEntity(automovil.get()))
@@ -124,8 +135,7 @@ public class ReservaService {
                 reserva.getAutomovil().getMarca() + " " + reserva.getAutomovil().getModelo(),
                 String.valueOf(reserva.getAutomovil().getAnio()),
                 confirmUrl,
-                reserva.getFecha()
-        );
+                reserva.getFecha());
 
         ReservaResponseDto dto = convertToResponseDto(reserva);
 
