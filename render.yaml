@@ -10,8 +10,6 @@ services:
     buildCommand: mvn clean package
     startCommand: java -jar target/*.jar
     
-    port: 10000 
-    
     envVars:
       # CONFIGURACIÓN DEL SERVIDOR Y FRONTEND
       - key: SERVER_PORT
